@@ -1,0 +1,29 @@
+// Constraint file per Tang Nano 9K
+// Assegna i segnali del top.v ai pin fisici della board
+
+IO_LOC "clk"       52;
+IO_PORT "clk"      PULL_MODE=NONE IO_TYPE=LVCMOS33;
+
+IO_LOC "btn_reset" 4;
+IO_PORT "btn_reset" PULL_MODE=UP IO_TYPE=LVCMOS18;
+
+//IO_LOC "uart_tx"   17;
+//IO_PORT "uart_tx"  PULL_MODE=NONE IO_TYPE=LVCMOS33;
+
+IO_LOC "uart_tx"   38;
+IO_PORT "uart_tx"  PULL_MODE=UP IO_TYPE=LVCMOS33;
+
+IO_LOC "led"       10;
+IO_PORT "led"      PULL_MODE=NONE IO_TYPE=LVCMOS18;
+
+IO_LOC "spi_clk"   59;
+IO_PORT "spi_clk"  PULL_MODE=NONE IO_TYPE=LVCMOS33;
+
+IO_LOC "spi_csn"   60;
+IO_PORT "spi_csn"  PULL_MODE=UP IO_TYPE=LVCMOS33;
+
+IO_LOC "spi_mosi"  61;
+IO_PORT "spi_mosi" PULL_MODE=NONE IO_TYPE=LVCMOS33;
+
+IO_LOC "spi_miso"  62;
+IO_PORT "spi_miso" PULL_MODE=UP IO_TYPE=LVCMOS33;
