@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h> // Aggiunto per memset
+#include "aes.h"
 
 /*
  * Interfaccia verso l'acceleratore AES hardware via istruzione custom PCPI.
@@ -60,13 +62,89 @@ static int compare(const uint8_t *a, const uint8_t *b, int len) {
     return 1;
 }
 
+// Funzione per leggere il contatore di cicli interno del RISC-V
+static inline uint32_t read_cycles(void) {
+    uint32_t cycles;
+    __asm__ volatile ("rdcycle %0" : "=r" (cycles));
+    return cycles;
+}
+
+// Funzione che applica lo Zero Padding in-place
+// Restituisce la nuova lunghezza paddata (multiplo di 16)
+int applica_padding(uint8_t* buffer, int original_len) {
+    int remainder = original_len % 16;
+    if (remainder == 0) return original_len; // Già multiplo di 16
+    
+    int padding_needed = 16 - remainder;
+    for (int i = 0; i < padding_needed; i++) {
+        buffer[original_len + i] = 0x00; // Zero padding
+    }
+    return original_len + padding_needed;
+}
+
+void esegui_benchmark_padding() {
+    uint8_t key[16] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+    
+    // Buffer abbondanti per contenere il pacchetto originale + eventuale padding
+    uint8_t buf_hw[64];
+    uint8_t buf_sw[64];
+
+    // Definiamo i 3 scenari (lunghezze originali dei frame Modbus)
+    int scenari_len[3] = {13, 8, 17};
+    char* scenari_nomi[3] = {"Scenario A (13 byte)", "Scenario B (8 byte)", "Scenario C (17 byte)"};
+
+    printf("\r\n=== BENCHMARK PADDING MODBUS: HW vs SW ===\r\n");
+    printf("Scenario | Len Padded | Blocchi AES | Cicli HW | Cicli SW\r\n");
+    printf("-----------------------------------------------------------\r\n");
+
+    for (int i = 0; i < 3; i++) {
+        int orig_len = scenari_len[i];
+        
+        // Prepariamo i buffer (riempiamo con dati finti, es. 0xAA)
+        memset(buf_hw, 0xAA, orig_len);
+        memset(buf_sw, 0xAA, orig_len);
+
+        // 1. Applichiamo il padding
+        int padded_len = applica_padding(buf_hw, orig_len);
+        applica_padding(buf_sw, orig_len); // Identico per il SW
+        
+        int numero_blocchi = padded_len / 16;
+        uint32_t start, end, cicli_hw, cicli_sw;
+
+        // --- TEST HARDWARE ---
+        start = read_cycles();
+        for (int b = 0; b < numero_blocchi; b++) {
+            // Cifra un blocco da 16 byte alla volta
+            cifra_blocco_aes(key, &buf_hw[b * 16], &buf_hw[b * 16]);
+        }
+        end = read_cycles();
+        cicli_hw = end - start;
+
+        // --- TEST SOFTWARE (tiny-AES-c) ---
+        struct AES_ctx ctx;
+        AES_init_ctx(&ctx, key);
+        
+        start = read_cycles();
+        for (int b = 0; b < numero_blocchi; b++) {
+            AES_ECB_encrypt(&ctx, &buf_sw[b * 16]);
+        }
+        end = read_cycles();
+        cicli_sw = end - start;
+
+        // Stampa i risultati
+        printf("%-20s | %2d byte | %2d blocchi | %8lu | %8lu\r\n", 
+               scenari_nomi[i], padded_len, numero_blocchi, cicli_hw, cicli_sw);
+    }
+    printf("===========================================================\r\n\r\n");
+}
+
 /*
  * Suite di test AES-128:
- *   Test 1 — vettore ufficiale NIST FIPS-197 Appendice B
- *   Test 2 — chiave e testo tutti zero
- *   Test 3 — due cifrature consecutive (verifica reset stato interno)
+ * Test 1 — vettore ufficiale NIST FIPS-197 Appendice B
+ * Test 2 — chiave e testo tutti zero
+ * Test 3 — due cifrature consecutive (verifica reset stato interno)
  */
-int main(void) {
+void esegui_test_correttezza(void) {
     printf("=== Test Acceleratore AES Hardware (PCPI) ===\r\n\n");
 
     /* Test 1: NIST FIPS-197 Appendice B */
@@ -118,6 +196,15 @@ int main(void) {
     print_hex("Seconda ", result3b, 16);
     printf("Risultato: %s\r\n\n", compare(result3a, result3b, 16) ? "OK v (identici)" : "ERRORE x (diversi)");
 
-    printf("=== Fine test ===\r\n");
+    printf("=== Fine test di correttezza ===\r\n");
+}
+
+int main(void) {
+    // 1. Esegue i test di correttezza funzionale
+    esegui_test_correttezza();
+
+    // 2. Esegue il benchmark hardware vs software
+    esegui_benchmark_padding();
+    
     return 0;
 }
