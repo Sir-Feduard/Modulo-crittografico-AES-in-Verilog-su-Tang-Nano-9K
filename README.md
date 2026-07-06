@@ -126,7 +126,7 @@ sudo cmake --install build
 Il progetto è stato sviluppato sfruttando la flash esterna  puya della tang nano 9k per salvare sia il bitstream che il firmware. Per fare leggere al chip gw il bitstream da flash esterna al boot è necessario portare il pin MODE1(87) alto. Per fare ciò è sufficiente rimuovere la resistenza R17 da 4.7K ohm collegata a ground, non è necessario sostituirla dato che sul pin è presente un pull-up interno.
 ## Utilizzo
 
-Tutte le funzionalità vengono gestite tramite Makefile, lanciando il comando make vengono visualizzate tutti i target di compilazione, simulazione, sintesi e flash e vengono approfondite nella wiki.
+Tutte le funzionalità vengono gestite tramite Makefile, lanciando il comando make vengono visualizzate tutti i target di compilazione, simulazione, sintesi e flash.
 
 ```bash
 #Stampa tutte le opzioni con relativa spiegazione
